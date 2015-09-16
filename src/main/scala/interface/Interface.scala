@@ -1,11 +1,11 @@
 package interface
 
-import java.awt.{Polygon, Color}
+import java.awt.{BorderLayout, Polygon, Color}
 import java.awt.geom.Area
 import java.io.File
 import javax.imageio.ImageIO
-import javax.swing.border.BevelBorder
-import javax.swing.{WindowConstants, UIManager}
+import javax.swing.border.{TitledBorder, BevelBorder}
+import javax.swing.{Box, WindowConstants, UIManager}
 
 import scala.swing.event.{MouseExited, MouseMoved, Key, KeyPressed}
 import scala.swing._
@@ -27,7 +27,7 @@ class Interface extends SimpleSwingApplication {
       case e: Throwable => // gets ignored, look and feel is not that important
     }
 
-    val width = SizeUtils.std_width
+    val width = SizeUtils.std_width + 123
     val height = SizeUtils.std_height
     val screenSize = SizeUtils.getDisplaySize
     val dim = new java.awt.Dimension(width, height)
@@ -39,16 +39,26 @@ class Interface extends SimpleSwingApplication {
     peer.setResizable(false)
     title = "CPSDemo"
 
+    val drawPanel = new DrawPanel()
     val content = new BorderPanel() {
       add(new BorderPanel {
         border = new BevelBorder(BevelBorder.LOWERED)
         add(statusPanel, BorderPanel.Position.East)
         add(roomPanel, BorderPanel.Position.West)
       }, BorderPanel.Position.South)
-      add(new DrawPanel(), BorderPanel.Position.Center)
+      add(new BorderPanel() {
+        border = new TitledBorder("Sensors")
+        add(new GridPanel(4, 1) {
+          contents += new ComboBox(List("Sensor A", "Sensor B", "..."))
+          peer.add(Box.createVerticalBox())
+          contents += new Button("Add")
+          contents += new Button("Remove")
+        }, BorderPanel.Position.North)
+      }, BorderPanel.Position.West)
+      add(drawPanel, BorderPanel.Position.Center)
     }
-
     contents = content
+    drawPanel.requestFocus()
 
     override def closeOperation() {
       if (Dialogs.confirmation("Do you really want to exit the demo?")) {
@@ -82,7 +92,6 @@ class Interface extends SimpleSwingApplication {
     listenTo(mouse.moves)
     listenTo(keys)
     focusable = true
-    requestFocus()
 
     reactions += {
       case KeyPressed(_, Key.Up, _, _) => grandma.moveUp()
