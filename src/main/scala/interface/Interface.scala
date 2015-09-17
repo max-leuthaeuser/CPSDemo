@@ -1,14 +1,14 @@
 package interface
 
 import java.awt.event.MouseEvent
-import java.awt.{Polygon, Color}
+import java.awt.{Cursor, Polygon, Color}
 import java.awt.geom.Area
 import java.io.File
 import javax.imageio.ImageIO
 import javax.swing.border.{TitledBorder, BevelBorder}
 import javax.swing.{ToolTipManager, Box, WindowConstants, UIManager}
 
-import scala.swing.event.{MouseExited, MouseMoved, Key, KeyPressed}
+import scala.swing.event._
 import scala.swing._
 
 class Interface extends SimpleSwingApplication {
@@ -52,8 +52,18 @@ class Interface extends SimpleSwingApplication {
         add(new GridPanel(4, 1) {
           contents += new ComboBox(List("Sensor A", "Sensor B", "..."))
           peer.add(Box.createVerticalBox())
-          contents += new Button("Add")
-          contents += new Button("Remove")
+          contents += new Button("Add") {
+            listenTo(mouse.clicks)
+            reactions += {
+              case e: MouseClicked => drawPanel.peer.setCursor(new Cursor(Cursor.HAND_CURSOR))
+            }
+          }
+          contents += new Button("Remove") {
+            listenTo(mouse.clicks)
+            reactions += {
+              case e: MouseClicked => drawPanel.peer.setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR))
+            }
+          }
         }, BorderPanel.Position.North)
       }, BorderPanel.Position.West)
       add(drawPanel, BorderPanel.Position.Center)
@@ -103,6 +113,7 @@ class Interface extends SimpleSwingApplication {
         case true => grandma.recover()
         case false => grandma.passOut()
       }
+      case e: MouseClicked => peer.setCursor(Cursor.getDefaultCursor)
       case MouseMoved(src, pt, mod) =>
         statusPanel.text = s"Position: x = ${pt.x}, y = ${pt.y}"
         rooms.foreach(_.handleHover(pt.x, pt.y))
@@ -173,7 +184,7 @@ class Interface extends SimpleSwingApplication {
     }
 
     private object Room {
-      val HOVER_COLOR = new Color(255, 0, 0, 100)
+      val HOVER_COLOR = new Color(255, 0, 0, 50)
       val COLOR = new Color(255, 255, 255, 0)
       val MAX_SENSORS = 2
       val MAX_ACTORS = 2
@@ -183,11 +194,15 @@ class Interface extends SimpleSwingApplication {
       protected val poly = new Polygon(points.map(_._1).toArray, points.map(_._2).toArray, points.size)
       private val area = new Area(poly)
 
-      private val sensors = List(new Sensor("SA", List((points.head._1 + 5, points.head._2 + 25))),
-        new Sensor("SB", List((points.head._1 + 5, points.head._2 + 50))))
+      private val sensors = List(
+        new Sensor("SA", List((points.head._1 + 5, points.head._2 + 25))),
+        new Sensor("SB", List((points.head._1 + 5, points.head._2 + 50)))
+      )
 
-      private val actors = List(new Actor("AA", List((points.head._1 + 35, points.head._2 + 25))),
-        new Actor("AB", List((points.head._1 + 35, points.head._2 + 50))))
+      private val actors = List(
+        new Actor("AA", List((points.head._1 + 35, points.head._2 + 25))),
+        new Actor("AB", List((points.head._1 + 35, points.head._2 + 50)))
+      )
 
       y = area.getBounds2D.getX.toInt
       x = area.getBounds2D.getX.toInt
@@ -221,18 +236,22 @@ class Interface extends SimpleSwingApplication {
           case Sensor(n, _) =>
             DrawPanel.this.peer.setToolTipText("Sensor: " + n)
             showTooltip(vx, vy)
+            return
           case Actor(n, _) =>
             DrawPanel.this.peer.setToolTipText("Actor: " + n)
             showTooltip(vx, vy)
+            return
         }
       }
     }
 
-    private case class Sensor(name: String, points: List[(Int, Int)]) extends Tile {
+    private abstract class Installable(name: String, points: List[(Int, Int)]) extends Tile {
       width = 25
       height = 25
 
       private val ROUNDED = 6
+
+      protected var color: Color = _
 
       x = points.head._1
       y = points.head._2
@@ -240,28 +259,18 @@ class Interface extends SimpleSwingApplication {
       override def getArea: Area = new Area(new Polygon(Array(x, x + width, x + width, x), Array(y, y, y + height, y + height), 4))
 
       override def repaint(g: Graphics2D) {
-        g.setColor(Color.GREEN)
+        g.setColor(color)
         g.drawRoundRect(x, y, width, height, ROUNDED, ROUNDED)
         g.drawString(name, x + 5, y + 17)
       }
     }
 
-    private case class Actor(name: String, points: List[(Int, Int)]) extends Tile {
-      width = 25
-      height = 25
+    private case class Sensor(name: String, points: List[(Int, Int)]) extends Installable(name, points) {
+      color = Color.GREEN
+    }
 
-      private val ROUNDED = 6
-
-      x = points.head._1
-      y = points.head._2
-
-      override def getArea: Area = new Area(new Polygon(Array(x, x + width, x + width, x), Array(y, y, y + height, y + height), 4))
-
-      override def repaint(g: Graphics2D) {
-        g.setColor(Color.BLUE)
-        g.drawRoundRect(x, y, width, height, ROUNDED, ROUNDED)
-        g.drawString(name, x + 5, y + 17)
-      }
+    private case class Actor(name: String, points: List[(Int, Int)]) extends Installable(name, points) {
+      color = Color.BLUE
     }
 
     private class Border(points: List[(Int, Int)]) extends Room("", points) {
