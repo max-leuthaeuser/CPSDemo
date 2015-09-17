@@ -1,11 +1,12 @@
 package interface
 
-import java.awt.{BorderLayout, Polygon, Color}
+import java.awt.event.MouseEvent
+import java.awt.{Polygon, Color}
 import java.awt.geom.Area
 import java.io.File
 import javax.imageio.ImageIO
 import javax.swing.border.{TitledBorder, BevelBorder}
-import javax.swing.{Box, WindowConstants, UIManager}
+import javax.swing.{ToolTipManager, Box, WindowConstants, UIManager}
 
 import scala.swing.event.{MouseExited, MouseMoved, Key, KeyPressed}
 import scala.swing._
@@ -105,7 +106,16 @@ class Interface extends SimpleSwingApplication {
       case MouseMoved(src, pt, mod) =>
         statusPanel.text = s"Position: x = ${pt.x}, y = ${pt.y}"
         rooms.foreach(_.handleHover(pt.x, pt.y))
-      case MouseExited(src, pt, mod) => rooms.foreach(_.handleHover(-1, -1))
+      case MouseExited(src, pt, mod) =>
+        rooms.foreach(_.handleHover(-1, -1))
+    }
+
+    def showTooltip(x: Int, y: Int) {
+      ToolTipManager.sharedInstance().mouseMoved(new MouseEvent(this.peer, 0, 0, 0, x, y, 0, false))
+    }
+
+    def hideTooltip() {
+      ToolTipManager.sharedInstance().mouseExited(new MouseEvent(this.peer, 0, 0, 0, 0, 0, 0, 0, 0, false, 0))
     }
 
     override def paint(g: Graphics2D) {
@@ -162,14 +172,22 @@ class Interface extends SimpleSwingApplication {
       }
     }
 
-    private object RoomBound {
-      var HOVER_COLOR = new Color(255, 0, 0, 100)
-      var COLOR = new Color(255, 255, 255, 0)
+    private object Room {
+      val HOVER_COLOR = new Color(255, 0, 0, 100)
+      val COLOR = new Color(255, 255, 255, 0)
+      val MAX_SENSORS = 2
+      val MAX_ACTORS = 2
     }
 
     private class Room(name: String, points: List[(Int, Int)]) extends Tile {
       protected val poly = new Polygon(points.map(_._1).toArray, points.map(_._2).toArray, points.size)
       private val area = new Area(poly)
+
+      private val sensors = List(new Sensor("SA", List((points.head._1 + 5, points.head._2 + 25))),
+        new Sensor("SB", List((points.head._1 + 5, points.head._2 + 50))))
+
+      private val actors = List(new Actor("AA", List((points.head._1 + 35, points.head._2 + 25))),
+        new Actor("AB", List((points.head._1 + 35, points.head._2 + 50))))
 
       y = area.getBounds2D.getX.toInt
       x = area.getBounds2D.getX.toInt
@@ -182,14 +200,67 @@ class Interface extends SimpleSwingApplication {
 
       override def repaint(g: Graphics2D) {
         if (hover)
-          g.setColor(RoomBound.HOVER_COLOR)
+          g.setColor(Room.HOVER_COLOR)
         else
-          g.setColor(RoomBound.COLOR)
+          g.setColor(Room.COLOR)
         g.fillPolygon(poly)
 
         g.setColor(Color.RED)
         g.drawPolygon(poly)
+        // render room name
         g.drawString(name, points.head._1 + 5, points.head._2 + 15)
+        // render sensors
+        sensors.foreach(_.repaint(g))
+        // render actors
+        actors.foreach(_.repaint(g))
+      }
+
+      override def handleHover(vx: Int, vy: Int) {
+        super.handleHover(vx, vy)
+        (sensors ++ actors).find(_.getArea.contains(vx, vy)).foreach {
+          case Sensor(n, _) =>
+            DrawPanel.this.peer.setToolTipText("Sensor: " + n)
+            showTooltip(vx, vy)
+          case Actor(n, _) =>
+            DrawPanel.this.peer.setToolTipText("Actor: " + n)
+            showTooltip(vx, vy)
+        }
+      }
+    }
+
+    private case class Sensor(name: String, points: List[(Int, Int)]) extends Tile {
+      width = 25
+      height = 25
+
+      private val ROUNDED = 6
+
+      x = points.head._1
+      y = points.head._2
+
+      override def getArea: Area = new Area(new Polygon(Array(x, x + width, x + width, x), Array(y, y, y + height, y + height), 4))
+
+      override def repaint(g: Graphics2D) {
+        g.setColor(Color.GREEN)
+        g.drawRoundRect(x, y, width, height, ROUNDED, ROUNDED)
+        g.drawString(name, x + 5, y + 17)
+      }
+    }
+
+    private case class Actor(name: String, points: List[(Int, Int)]) extends Tile {
+      width = 25
+      height = 25
+
+      private val ROUNDED = 6
+
+      x = points.head._1
+      y = points.head._2
+
+      override def getArea: Area = new Area(new Polygon(Array(x, x + width, x + width, x), Array(y, y, y + height, y + height), 4))
+
+      override def repaint(g: Graphics2D) {
+        g.setColor(Color.BLUE)
+        g.drawRoundRect(x, y, width, height, ROUNDED, ROUNDED)
+        g.drawString(name, x + 5, y + 17)
       }
     }
 
