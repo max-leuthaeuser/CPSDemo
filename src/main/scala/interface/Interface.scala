@@ -204,7 +204,7 @@ class Interface extends SimpleSwingApplication {
         new Actor("AB", List((points.head._1 + 35, points.head._2 + 50)))
       )
 
-      y = area.getBounds2D.getX.toInt
+      y = area.getBounds2D.getY.toInt
       x = area.getBounds2D.getX.toInt
       width = area.getBounds2D.getWidth.toInt
       height = area.getBounds2D.getHeight.toInt
@@ -236,11 +236,9 @@ class Interface extends SimpleSwingApplication {
           case Sensor(n, _) =>
             DrawPanel.this.peer.setToolTipText("Sensor: " + n)
             showTooltip(vx, vy)
-            return
           case Actor(n, _) =>
             DrawPanel.this.peer.setToolTipText("Actor: " + n)
             showTooltip(vx, vy)
-            return
         }
       }
     }
@@ -304,7 +302,7 @@ class Interface extends SimpleSwingApplication {
         room.getArea.contains(bounds.getCenterX, bounds.getCenterY)
       }
 
-      private def moveAllowed = !borders.exists(collide)
+      private def moveAllowed = x >= 0 && y >= 0 && x <= peer.getWidth && y <= peer.getHeight && !borders.exists(collide)
 
       def passOut() {
         passedOut = true

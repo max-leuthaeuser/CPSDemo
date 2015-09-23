@@ -32,7 +32,7 @@ object SmartHome {
 
     class EmergencyCaller
 
-    class HealtMonitor
+    class HealthMonitor
 
     class Injured
 
